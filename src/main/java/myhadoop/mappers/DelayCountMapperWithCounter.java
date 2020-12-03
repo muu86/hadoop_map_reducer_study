@@ -8,61 +8,74 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 
 import myhadoop.support.AirlinePerformanceParser;
+import myhadoop.support.DelayCounter;
 
-public class DelayCountMapper 
+public class DelayCountMapperWithCounter 
 	extends Mapper<LongWritable,
 					Text,
 					Text,
 					IntWritable>{
-
-	// 사용자 지정 옵션 -D 로 전달되는 workType(departure, arrival)
+	// 사용자 옵션 workType 체크
 	private String workType;
-	// 맵 출력 값
+	// (1987,1 1)
 	private final static IntWritable outputValue = new IntWritable(1);
-	// 맵 출력 키
+	// 출력 키
 	private Text outputKey = new Text();
 	
-	// map 메서드 수행 이전에 옵션을 받아오기 위한 setup 메서드
 	@Override
 	protected void setup(Context context)
 			throws IOException, InterruptedException {
-		// 매퍼가 처음 실행될 때 단 한 번 호출
-		// 옵션을 받아와서 설정
+		// 사용자 옵션 workType 을 설정
 		workType = context.getConfiguration().get("workType");
 	}
-
+	
 	@Override
 	protected void map(LongWritable key, 
 						Text value, 
 						Context context)
 			throws IOException, InterruptedException {
-		
-		if (key.get() == 0 && value.toString().contains("YEAR")) {
-			// 헤더이므로 중단
+		// 첫 번째 라인은 헤더일 가능성
+		if (key.get() == 0 && value.toString().contains("YEAR"))
 			return;
-		}
 		
-		// csv 파싱(분석)
 		AirlinePerformanceParser parser = new AirlinePerformanceParser(value);
 		
-		// 옵션 workType 에 의한 매핑 작업 분기
-		// 로직을 분리
+		// workType 에 따른 매핑 흐름의 분기
 		if (workType.equals("departure")) {
-			// 출발 지연 시간을 검사
+			
+			// 출발 관련 내용 점검
 			if (parser.getDepartureDelayTime() > 0) {
-				// 출력 키 설정
 				outputKey.set(parser.getYear() + "," + parser.getMonth());
-				// 출력
 				context.write(outputKey, outputValue);
+				
+			} else if (parser.getDepartureDelayTime() == 0 ) { 	// 정시 출발
+				// 정시 출발 카운터 1 증가
+				context.getCounter(DelayCounter.scheduled_departure).increment(1);
+				
+			} else if (parser.getDepartureDelayTime() < 0) {		// 일찍 출발
+				// 일찍 출발 카운터 1 증가
+				context.getCounter(DelayCounter.early_departure).increment(1);
 			}
+			
 		} else if (workType.equals("arrival")) {
-			// 도착 지연 시간을 검사
+			
+			// 도착 관련 내용 점검
 			if (parser.getArrivalDelayTime() > 0) {
+				// 도착 지연 카운터 증가
 				outputKey.set(parser.getYear() + "," + parser.getMonth());
 				context.write(outputKey, outputValue);
+			
+			} else if (parser.getArrivalDelayTime() == 0) {
+				// 정시 도착 카운터 증가
+				context.getCounter(DelayCounter.scheduled_arrival).increment(1);
+			
+			} else if (parser.getArrivalDelayTime() < 0) {
+				// 일찍 도착 카운터 증가
+				context.getCounter(DelayCounter.early_arrival).increment(1);
 			}
 		}
 	}
+	
 	
 	
 }

@@ -11,7 +11,7 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
-import myhadoop.mappers.DelayCountMapper;
+import myhadoop.mappers.DeptDelayCountMapper;
 import myhadoop.reducer.DelayCountReducer;
 
 // DeptDelayCount <input> <output>
@@ -42,7 +42,7 @@ public class DeptDelayCount {
 		// 실행 클래스 등록
 		job.setJarByClass(DeptDelayCount.class);
 		// 매퍼 클래스 설정
-		job.setMapperClass(DelayCountMapper.class);
+		job.setMapperClass(DeptDelayCountMapper.class);
 		// 리듀서 클래스 등록
 		job.setReducerClass(DelayCountReducer.class);
 		
